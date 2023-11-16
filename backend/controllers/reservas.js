@@ -29,7 +29,7 @@ const nuevaReserva = async (req, res = response) => {
 const updateReserva = async (req, res = response) => {
 
     const id = req.params.id
-    const { nombre, foto, fecha, duracion } = req.body
+    const { nombre, foto, fecha, duracion, salon } = req.body
 
     try {
         const reserva = await Reservas.findByPk(id)
@@ -43,9 +43,10 @@ const updateReserva = async (req, res = response) => {
         }
 
         reserva.nombre = nombre
-        reserva.precio = foto
-        reserva.nombre = fecha
-        reserva.precio = duracion
+        reserva.foto = foto
+        reserva.fecha = fecha
+        reserva.duracion = duracion
+        reserva.salon = salon
 
 
         await reserva.save()
@@ -65,7 +66,7 @@ const deleteReserva = async (req, res = response) => {
 
     try {
         const id = req.params.id
-        await Reservas.destroy({ where: { id } })
+        await Reservas.destroy({ where: { id: id } })
 
         res.json({ id })
 
