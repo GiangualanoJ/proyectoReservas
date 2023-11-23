@@ -31,18 +31,18 @@ export default function Reserva() {
     const [DialogRE, setDialogRE] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [globalfilter, setGlobalFilter] = useState(null);
+    const [globalFilterValue, setGlobalFilterValue] = useState('');
     const [date, setDate] = useState(null);
     const [isFetching, setFetching] = useState(false)
     const [filters, setFilters] = useState({
-        global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        nombre: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-        salon: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] }
+        global: { value: '', matchMode: FilterMatchMode.CONTAINS },
+        nombre: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
+        salon: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
+        fecha: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.DATE_IS }] },
     });
+
     const [file, setFile] = useState('')
     const [selectedFile, setSelectedFile] = useState(null);
-    const [nombre, setNombre] = useState('');
-    const [salon, seSalon] = useState('');
     const [reservaId, setReservaId] = useState(null)
     const [reserva, setReserva] = useState(emptyReserva);
 
@@ -159,22 +159,35 @@ export default function Reserva() {
     };
 
     const handleFileUpload = (event) => {
-        setSelectedFile({ ...reserva, file: event.target.files[0]});
+        setSelectedFile({ ...reserva, file: event.target.files[0] });
+    };
+
+    const clearFilter = () => {
+        initFilters();
     };
 
     const onGlobalFilterChange = (e) => {
-        const searchValue = e.target.value;
-        setGlobalFilter(searchValue);
+        const value = e.target.value;
+        let _filters = { ...filters };
 
-        const filteredReservations = reservas.filter(reserva => {
-            return reserva.nombre.includes(searchValue) || reserva.salon.includes(searchValue);
-        });
+        _filters['global'].value = value;
 
-        setReservas(filteredReservations);
+        setFilters(_filters);
+        setGlobalFilterValue(value);
     };
 
+    const initFilters = () => {
+        setFilters({
+            global: { value: '', matchMode: FilterMatchMode.CONTAINS },
+            nombre: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
+            salon: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
+            fecha: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.DATE_IS }] },
+        });
+        setGlobalFilterValue('');
+    };
+
+
     const renderHeader = () => {
-        const value = filters['global'] ? filters['global'].value : '';
 
         return (
             <React.Fragment>
@@ -183,11 +196,9 @@ export default function Reserva() {
                     <i className="pi pi-bars p-toolbar-separator mr-2" />
                     <span className="lg:ml-2 mt-2 p-input-icon-left">
                         <i className="pi pi-search" />
-                        <InputText className='d-flex' type="search" value={globalfilter} onChange={onGlobalFilterChange} placeholder="Buscar por nombre o salón" />
+                        <InputText className='d-flex' type="search" value={globalFilterValue} onChange={onGlobalFilterChange} placeholder="Buscar reserva" />
                     </span>
-                    <span className="lg:ml-2 mt-2 p-input-icon-left">
-                        <Calendar value={date} onChange={(e) => setDate(e.value)} showIcon placeholder="Buscar por fecha" />
-                    </span>
+                    <Button type="button" icon="pi pi-filter-slash" label="Clear" outlined onClick={clearFilter} />
                 </div>
             </React.Fragment>
         );
@@ -211,19 +222,8 @@ export default function Reserva() {
         </React.Fragment>
     )
 
-    const value = new Date();
-    const duracion = 2;
-
-    const newValue = new Date(value.getTime());
-    newValue.setHours(duracion);
-
-    const entrada = useRef()
-
-    const onFilter = (e) => {
-        const newFilters = { ...filters, ...e.filters };
-        if ((nombre.length && nombre === entrada.current.value) || (salon.length && salon === entrada.current.value) || (!nombre.length && !salon.length))
-            setFilters(newFilters);
-    };
+    const duracion = new Date();
+    duracion.setHours(12, 0);
 
     return (
         <div className='grid justify-content-center align-items-center p-0 m-0'>
@@ -231,36 +231,43 @@ export default function Reserva() {
                 <Toast ref={toast} />
                 <Toolbar start={header} />
             </div>
-            {!globalfilter && reservas.map((reserva) => (
-                <div className='col-12 lg:col-4 lg:mx-4' key={reserva.id}>
-                    {isFetching && <h1>Cargando...</h1>}
-                    <Card filters={filters} onFilter={onFilter} globalFilterFields={['nombre', 'salon']}>
-                        <div className='grid m-0'>
-                            <div className='align-items-center'>
-                                <img src={`http://localhost:3001/reservas/imagen/${reserva.file}`} alt={reserva.nombre} className='fotos'></img>
+            {reservas
+                .filter(reserva =>
+                    !globalFilterValue ||
+                    reserva.nombre.toLowerCase().includes(globalFilterValue.toLowerCase()) ||
+                    reserva.salon.toLowerCase().includes(globalFilterValue.toLowerCase()) ||
+                    reserva.fecha.toLowerCase().includes(globalFilterValue.toLowerCase())
+                )
+                .map((reserva, index) => (
+                    <div className='col-12 lg:col-4 lg:mx-4' key={index}>
+                        {isFetching && <h1>Cargando...</h1>}
+                        <Card filters={filters} globalFilterFields={['nombre', 'salon', 'fecha']} emptyMessage="No se encontraron resultados.">
+                            <div className='grid m-0'>
+                                <div className='align-items-center'>
+                                    <img src={`http://localhost:3001/reservas/imagen/${reserva.file}`} alt={reserva.nombre} className='fotos'></img>
+                                </div>
+                                <div className='p-grid m-5 justify-content-center'>
+                                    <div className='mb-2'>
+                                        <Chip label={reserva.nombre} />
+                                    </div>
+                                    <div className='mb-2'>
+                                        <Chip label={reserva.fecha} />
+                                    </div>
+                                    <div className='mb-2'>
+                                        <Chip label={`${(reserva.duracion)} hrs.`} />
+                                    </div>
+                                    <div>
+                                        <Chip label={reserva.salon} />
+                                    </div>
+                                    <div className='mt-4'>
+                                        <Button icon="pi pi-pencil" rounded text raised className='mx-2' onClick={() => editReserva(reserva)} />
+                                        <Button icon="pi pi-times" rounded text raised severity="danger" aria-label="Cancel" onClick={() => (setReservaId(reserva.id), setDeleteDialog(true))} />
+                                    </div>
+                                </div>
                             </div>
-                            <div className='p-grid m-5 justify-content-center'>
-                                <div className='mb-2'>
-                                    <Chip label={reserva.nombre} />
-                                </div>
-                                <div className='mb-2'>
-                                    <Chip label={reserva.fecha} />
-                                </div>
-                                <div className='mb-2'>
-                                    <Chip label={`${(reserva.duracion)} hrs.`} />
-                                </div>
-                                <div>
-                                    <Chip label={reserva.salon} />
-                                </div>
-                                <div className='mt-4'>
-                                    <Button icon="pi pi-pencil" rounded text raised className='mx-2' onClick={() => editReserva(reserva)} />
-                                    <Button icon="pi pi-times" rounded text raised severity="danger" aria-label="Cancel" onClick={() => (setReservaId(reserva.id), setDeleteDialog(true))} />
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            ))}
+                        </Card>
+                    </div>
+                ))}
 
 
             <Dialog visible={DialogRE} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Reserva" modal className="p-fluid" footer={footerDialog} onHide={hideDialog}>
