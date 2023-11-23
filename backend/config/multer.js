@@ -1,15 +1,15 @@
-'use strict'
-
 const multer = require('multer')
 const path = require('path')
 
 const storage = multer.diskStorage({
-    destination: function(req, file, cd) {
-        cd(null, path.join(__dirname,'../imagenes'))
+    destination: function (req, file, cb) {
+      cb(null, './uploads')
     },
-    filename: function(req, file, cd) {
-        cd(null, `${file.fieldname}.${file.mimetype.split('/')[1]}`)
+    filename: function (req, file, cb) {
+      cb(null, file.originalname)
     }
 })
+
+const upload = multer({ storage: storage })
 
 module.exports = storage

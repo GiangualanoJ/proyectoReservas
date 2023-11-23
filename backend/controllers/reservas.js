@@ -12,18 +12,28 @@ const getReserva = async (req, res = response) => {
     }
 } /* Obtiene las reservas de la tabla 'reservas' */
 
-const nuevaReserva = async (req, res = response) => {
+const nuevaReserva = async (req, res) => {
     try {
+        const { nombre, fecha, duracion, salon } = req.body;
+        const { path } = req.file;
 
-        const reserva = new Reservas(req.body)
-        await reserva.save()
+        const nuevaReserva = new Reservas({
+            nombre,
+            fecha,
+            duracion,
+            salon,
+            file: path
+        });
 
-        res.json({ reserva })
+        await nuevaReserva.save();
 
+        res.status(201).json(nuevaReserva);
     } catch (error) {
-        console.log(error)
+        console.error(error);
+        res.status(500).json({ error: 'Hubo un error al crear la reserva' });
     }
-} /* Permite crear una nueva reserva */
+};
+ /* Permite crear una nueva reserva */
 
 
 const updateReserva = async (req, res = response) => {
@@ -51,6 +61,8 @@ const updateReserva = async (req, res = response) => {
 
         await reserva.save()
         res.json(reserva)
+
+        console.log(req.body)
 
     } catch (error) {
         console.log(error)

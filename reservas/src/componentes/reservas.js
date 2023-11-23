@@ -20,7 +20,7 @@ export default function Reserva() {
     let emptyReserva = {
         id: null,
         nombre: '',
-        foto: '',
+        file: null,
         fecha: new Date(),
         duracion: new Date(),
         salon: '',
@@ -40,6 +40,7 @@ export default function Reserva() {
         salon: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] }
     });
     const [file, setFile] = useState('')
+    const [selectedFile, setSelectedFile] = useState(null);
     const [nombre, setNombre] = useState('');
     const [salon, seSalon] = useState('');
     const [reservaId, setReservaId] = useState(null)
@@ -75,31 +76,41 @@ export default function Reserva() {
             }
 
             const formData = new FormData();
-            formData.append('nombre', reserva.nombre);
-            formData.append('foto', reserva.foto);
-            formData.append('fecha', reserva.fecha);
-            formData.append('duracion', reserva.duracion);
-            formData.append('salon', reserva.salon);
+            formData.append("nombre", reserva.nombre);
+            formData.append("file", selectedFile);
+            formData.append("fecha", reserva.fecha);
+            formData.append("duracion", reserva.duracion);
+            formData.append("salon", reserva.salon);
 
             if (reserva.id) {
-                await axios.put(`http://localhost:3001/reservas/${reserva.id}`, formData);
+                await axios.put(`http://localhost:3001/reservas/${reserva.id}`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
                 const updatedReserva = [...reservas];
                 const reservaIndex = updatedReserva.findIndex((r) => r.id === reserva.id);
                 updatedReserva[reservaIndex] = { ...reserva };
                 setReservas(updatedReserva);
                 toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva editada', life: 3000 });
             } else {
-                const response = await axios.post('http://localhost:3001/reservas/nuevaReserva', formData);
+                const response = await axios.post('http://localhost:3001/reservas/nuevaReserva', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
                 const newReserva = response.data;
                 setReservas([...reservas, newReserva]);
                 toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva creada', life: 3000 });
             }
             hideDialog();
             getReserva();
+
         } catch (error) {
             console.error(error);
         }
     };
+
     const deleteReserva = async () => {
         const id = reservaId;
         try {
@@ -137,7 +148,7 @@ export default function Reserva() {
         setReserva({
             ...reserva,
             fecha: new Date(fecha),
-            duracion: new Date(`1970-01-01T${duracion}`),
+            duracion: new Date(duracion),
         });
         setDialogRE(true);
     };
@@ -147,25 +158,8 @@ export default function Reserva() {
         setFile(selectedFile);
     };
 
-    const handleFileUpload = async (e) => {
-        const file = e.target.files[0];
-        const formData = new FormData();
-        formData.append('foto', file);
-
-        try {
-            const response = await fetch('/imagen', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (response.ok) {
-                console.log('La imagen se ha subido correctamente')
-            } else {
-                console.log('Error al sibir la imagen')
-            }
-        } catch (error) {
-            console.error('Error al subir la foto:', error);
-        }
+    const handleFileUpload = (event) => {
+        setSelectedFile({ ...reserva, file: event.target.files[0]});
     };
 
     const onGlobalFilterChange = (e) => {
@@ -243,7 +237,7 @@ export default function Reserva() {
                     <Card filters={filters} onFilter={onFilter} globalFilterFields={['nombre', 'salon']}>
                         <div className='grid m-0'>
                             <div className='align-items-center'>
-                                <img src={reserva.foto} alt={reserva.nombre} className='fotos'></img>
+                                <img src={`http://localhost:3001/reservas/imagen/${reserva.file}`} alt={reserva.nombre} className='fotos'></img>
                             </div>
                             <div className='p-grid m-5 justify-content-center'>
                                 <div className='mb-2'>
@@ -279,10 +273,10 @@ export default function Reserva() {
                         {submitted && !reserva.nombre && <small className="p-error">Name is required.</small>}
                     </div>
                     <div className="field">
-                        <label htmlFor="imagen" className="font-bold">
+                        <label htmlFor="file" className="font-bold">
                             Imagen
                         </label>
-                        <FileUpload id="imagen" mode="basic" onChange={handleFileUpload} onSelect={selectedHandler} name="imagen" url="http://localhost:3001/reservas/imagen" accept="image/*" maxFileSize={1000000} />
+                        <FileUpload id="file" mode="basic" onChange={handleFileUpload} onSelect={selectedHandler} name="file" url="http://localhost:3001/reservas/imagen" accept="image/*" maxFileSize={1000000} />
                     </div>
                     <div className="field">
                         <label htmlFor="fecha" className="font-bold">
