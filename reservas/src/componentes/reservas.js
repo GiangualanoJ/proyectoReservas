@@ -3,48 +3,46 @@ import axios from 'axios';
 import { Toolbar } from 'primereact/toolbar';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
-import { classNames } from 'primereact/utils';
+import { Dropdown } from 'primereact/dropdown';
 import { Card } from 'primereact/card';
 import { Chip } from 'primereact/chip';
 import { Calendar } from 'primereact/calendar';
-import { DemoContainer } from '@mui/x-date-pickers/internals/demo';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { InputText } from 'primereact/inputtext';
+import { InputNumber } from 'primereact/inputnumber';
 import { Dialog } from 'primereact/dialog';
 import { FileUpload } from 'primereact/fileupload';
 import { FilterMatchMode, FilterOperator } from 'primereact/api';
+import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 
 export default function Reserva() {
     let emptyReserva = {
         id: null,
         nombre: '',
-        file: null,
-        fecha: new Date(),
-        duracion: new Date(),
-        salon: '',
+        file: '',
+        fechaDesde: new Date(),
+        fechaHasta: new Date(),
+        horaDevolucion: new Date().setHours(12, 0, 0),
+        salonID: '',
     };
 
     const toast = useRef(null);
     const [reservas, setReservas] = useState([]);
+    const [reservaId, setReservaId] = useState(null)
+    const [reserva, setReserva] = useState(emptyReserva);
     const [DialogRE, setDialogRE] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [globalFilterValue, setGlobalFilterValue] = useState('');
-    const [date, setDate] = useState(null);
     const [isFetching, setFetching] = useState(false)
     const [filters, setFilters] = useState({
         global: { value: '', matchMode: FilterMatchMode.CONTAINS },
         nombre: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
-        salon: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
-        fecha: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.DATE_IS }] },
+        salonID: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
+        fechaDesde: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.DATE_IS }] },
+        fechaHasta: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.DATE_IS }] },
     });
+    const argentinaTimeZone = 'America/Argentina/Buenos_Aires';
 
-    const [file, setFile] = useState('')
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [reservaId, setReservaId] = useState(null)
-    const [reserva, setReserva] = useState(emptyReserva);
 
     useEffect(() => {
         getReserva()
@@ -62,25 +60,14 @@ export default function Reserva() {
     const createReserva = async (e) => {
         e.preventDefault();
         try {
-            if (reserva.nombre === '') {
-                toast.current.show({ severity: 'error', summary: 'Error', detail: 'Se requiere el nombre', life: 3000 });
-                return;
-            }
-            if (reserva.fecha === null) {
-                toast.current.show({ severity: 'error', summary: 'Error', detail: 'Seleccione una fecha', life: 3000 });
-                return;
-            }
-            if (reserva.salon === '') {
-                toast.current.show({ severity: 'error', summary: 'Error', detail: 'Seleccione un salón', life: 3000 });
-                return;
-            }
 
             const formData = new FormData();
             formData.append("nombre", reserva.nombre);
-            formData.append("file", selectedFile);
-            formData.append("fecha", reserva.fecha);
-            formData.append("duracion", reserva.duracion);
-            formData.append("salon", reserva.salon);
+            formData.append("file", reserva.file);
+            formData.append("fechaDesde", reserva.fechaDesde);
+            formData.append("fechaHasta", reserva.fechaHasta);
+            formData.append("horaDevolucion", reserva.horaDevolucion);
+            formData.append("salonID", reserva.salonID);
 
             if (reserva.id) {
                 await axios.put(`http://localhost:3001/reservas/${reserva.id}`, formData, {
@@ -94,11 +81,7 @@ export default function Reserva() {
                 setReservas(updatedReserva);
                 toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva editada', life: 3000 });
             } else {
-                const response = await axios.post('http://localhost:3001/reservas/nuevaReserva', formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
-                });
+                const response = await axios.post('http://localhost:3001/reservas/nuevaReserva', reserva);
                 const newReserva = response.data;
                 setReservas([...reservas, newReserva]);
                 toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva creada', life: 3000 });
@@ -142,24 +125,82 @@ export default function Reserva() {
     };
 
     const editReserva = (reserva) => {
-        const fecha = reserva.fecha instanceof Date ? reserva.fecha.toISOString().split('T')[0] : reserva.fecha;
-        const duracion = reserva.duracion instanceof Date ? reserva.duracion.toISOString().split('T')[1] : reserva.duracion;
+        const fechaD = reserva.fechaDesde instanceof Date ? reserva.fechaDesde.toISOString().split('T')[0] : reserva.fechaDesde;
+        const fechaH = reserva.fechaHasta instanceof Date ? reserva.fechaHasta.toISOString().split('T')[0] : reserva.fechaHasta;
 
         setReserva({
             ...reserva,
-            fecha: new Date(fecha),
-            duracion: new Date(duracion),
+            fechaDesde: new Date(fechaD),
+            fechaHasta: new Date(fechaH),
         });
         setDialogRE(true);
+
     };
 
-    const selectedHandler = (event) => {
-        const selectedFile = event.files[0];
-        setFile(selectedFile);
+    const handleChangeFechaDesde = (event) => {
+        if (reserva !== null && reserva.fechaDesde !== null) {
+            const newFecha = new Date(event.value.getTime());
+            const fechaArgentina = zonedTimeToUtc(newFecha, argentinaTimeZone);
+            setReserva(prevPedido => ({
+                ...prevPedido,
+                fechaDesde: fechaArgentina,
+            }));
+        }
     };
 
-    const handleFileUpload = (event) => {
-        setSelectedFile({ ...reserva, file: event.target.files[0] });
+
+    const handleChangeFechaHasta = (event) => {
+        if (reserva !== null && reserva.fechaHasta !== null) {
+            const newFecha = new Date(event.value.getTime());
+            const fechaArgentina = zonedTimeToUtc(newFecha, argentinaTimeZone);
+            setReserva(prevReserva => ({
+                ...prevReserva,
+                fechaHasta: fechaArgentina,
+            }));
+        }
+    };
+
+    const fechaDesdeBodyTemplate = (rowData) => {
+        const fechaD = new Date(rowData.fechaDesde);
+        const opcionesFecha = { year: 'numeric', month: 'numeric', day: 'numeric' };
+
+        const fechaFormateada = fechaD.toLocaleDateString(undefined, opcionesFecha);
+
+
+        return (
+            <span>
+                {fechaFormateada}
+            </span>
+        );
+    };
+    const fechaHastaBodyTemplate = (rowData) => {
+        const fechaH = new Date(rowData.fechaHasta);
+        const opcionesFecha = { year: 'numeric', month: 'numeric', day: 'numeric' };
+
+        const fechaFormateada = fechaH.toLocaleDateString(undefined, opcionesFecha);
+
+
+        return (
+            <span>
+                {fechaFormateada}
+            </span>
+        );
+    };
+
+    const customBase64Uploader = async (event) => {
+        const file = event.files[0];
+        const reader = new FileReader();
+
+        reader.onloadend = function () {
+            const base64data = reader.result;
+            console.log('Base64 data:', base64data);
+            setReserva(prevReserva => ({
+                ...prevReserva,
+                file: base64data,
+            }));
+        };
+
+        reader.readAsDataURL(file);
     };
 
     const clearFilter = () => {
@@ -180,8 +221,9 @@ export default function Reserva() {
         setFilters({
             global: { value: '', matchMode: FilterMatchMode.CONTAINS },
             nombre: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
-            salon: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
-            fecha: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.DATE_IS }] },
+            salonID: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.STARTS_WITH }] },
+            fechaDesde: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.DATE_IS }] },
+            fechaHasta: { operator: FilterOperator.AND, constraints: [{ value: '', matchMode: FilterMatchMode.DATE_IS }] },
         });
         setGlobalFilterValue('');
     };
@@ -194,11 +236,13 @@ export default function Reserva() {
                 <div className='sm:p-grid'>
                     <Button label="New" icon="pi pi-plus" className="lg:mr-2" onClick={openNew} rounded raised />
                     <i className="pi pi-bars p-toolbar-separator mr-2" />
-                    <span className="lg:ml-2 mt-2 p-input-icon-left">
+                    <span className="lg:ml-2 p-input-icon-left">
                         <i className="pi pi-search" />
                         <InputText className='d-flex' type="search" value={globalFilterValue} onChange={onGlobalFilterChange} placeholder="Buscar reserva" />
                     </span>
-                    <Button type="button" icon="pi pi-filter-slash" label="Clear" outlined onClick={clearFilter} />
+                    <span className="lg:ml-2">
+                        <Button type="button" icon="pi pi-filter-slash" label="Clear" outlined onClick={clearFilter} />
+                    </span>
                 </div>
             </React.Fragment>
         );
@@ -222,9 +266,6 @@ export default function Reserva() {
         </React.Fragment>
     )
 
-    const duracion = new Date();
-    duracion.setHours(12, 0);
-
     return (
         <div className='grid justify-content-center align-items-center p-0 m-0'>
             <div className='col-12 p-0 m-0'>
@@ -234,14 +275,15 @@ export default function Reserva() {
             {reservas
                 .filter(reserva =>
                     !globalFilterValue ||
-                    reserva.nombre.toLowerCase().includes(globalFilterValue.toLowerCase()) ||
-                    reserva.salon.toLowerCase().includes(globalFilterValue.toLowerCase()) ||
-                    reserva.fecha.toLowerCase().includes(globalFilterValue.toLowerCase())
+                    (typeof reserva.nombre === 'string' && reserva.nombre.toLowerCase().includes(globalFilterValue.toLowerCase())) ||
+                    (typeof reserva.salonID === 'number' && reserva.salonID.toString().includes(globalFilterValue)) ||
+                    (typeof reserva.fechaDesde === 'string' && reserva.fechaDesde.toLowerCase().includes(globalFilterValue.toLowerCase())) ||
+                    (typeof reserva.fechaHasta === 'string' && reserva.fechaHasta.toLowerCase().includes(globalFilterValue.toLowerCase()))
                 )
                 .map((reserva, index) => (
                     <div className='col-12 lg:col-4 lg:mx-4' key={index}>
                         {isFetching && <h1>Cargando...</h1>}
-                        <Card filters={filters} globalFilterFields={['nombre', 'salon', 'fecha']} emptyMessage="No se encontraron resultados.">
+                        <Card filters={filters} globalFilterFields={['nombre', 'salonID', 'fecha']} emptyMessage="No se encontraron resultados.">
                             <div className='grid m-0'>
                                 <div className='align-items-center'>
                                     <img src={`http://localhost:3001/reservas/imagen/${reserva.file}`} alt={reserva.nombre} className='fotos'></img>
@@ -251,13 +293,16 @@ export default function Reserva() {
                                         <Chip label={reserva.nombre} />
                                     </div>
                                     <div className='mb-2'>
-                                        <Chip label={reserva.fecha} />
+                                        <Chip label={fechaDesdeBodyTemplate(reserva)} />
                                     </div>
                                     <div className='mb-2'>
-                                        <Chip label={`${(reserva.duracion)} hrs.`} />
+                                        <Chip label={fechaHastaBodyTemplate(reserva)} />
+                                    </div>
+                                    <div className='mb-2'>
+                                        <Chip label={`Hora de devolución: ${reserva.horaDevolucion}`} />
                                     </div>
                                     <div>
-                                        <Chip label={reserva.salon} />
+                                        <Chip label={reserva.salonID} />
                                     </div>
                                     <div className='mt-4'>
                                         <Button icon="pi pi-pencil" rounded text raised className='mx-2' onClick={() => editReserva(reserva)} />
@@ -276,55 +321,45 @@ export default function Reserva() {
                         <label htmlFor="nombre" className="font-bold">
                             Nombre
                         </label>
-                        <InputText id="nombre" value={reserva.nombre} onChange={(e) => setReserva({ ...reserva, nombre: e.target.value })} required autoFocus className={classNames({ 'p-invalid': submitted && !reserva.nombre })} />
-                        {submitted && !reserva.nombre && <small className="p-error">Name is required.</small>}
+                        <InputText id="nombre" value={reserva?.nombre} onChange={(e) => setReserva({ ...reserva, nombre: e.target.value })} autoFocus />
                     </div>
                     <div className="field">
                         <label htmlFor="file" className="font-bold">
                             Imagen
                         </label>
-                        <FileUpload id="file" mode="basic" onChange={handleFileUpload} onSelect={selectedHandler} name="file" url="http://localhost:3001/reservas/imagen" accept="image/*" maxFileSize={1000000} />
+                        <FileUpload id="file" mode="basic" uploadHandler={customBase64Uploader} name="file" accept="image/*" customUpload maxFileSize={1000000} />
                     </div>
                     <div className="field">
-                        <label htmlFor="fecha" className="font-bold">
-                            Fecha
+                        <label htmlFor="fechaDesde" className="font-bold">
+                            Fecha de inicio
                         </label>
-                        <Calendar id="fecha" dateFormat='yy/mm/dd' value={reserva.fecha} onChange={(e) => setReserva({ ...reserva, fecha: e.value })} rows={3} cols={20} />
+                        <Calendar id="fechaDesde" dateFormat='yy/mm/dd' value={reserva.fechaDesde} onChange={handleChangeFechaDesde} rows={3} cols={20} />
                     </div>
                     <div className="field">
-                        <label htmlFor="duracion" className="font-bold">
-                            Duración
-
+                        <label htmlFor="fechaHasta" className="font-bold">
+                            Fecha de final
                         </label>
-                        <LocalizationProvider dateAdapter={AdapterDayjs}>
-                            <DemoContainer components={['TimePicker']}>
-                                <TimePicker
-                                    label="Basic time picker"
-                                    id="duracion"
-                                    value={reserva.duracion ? new Date(reserva.duracion) : null}
-                                    onChange={(e) => {
-                                        if (e && e.value) {
-                                            const selectedTime = e.value;
-                                            const formattedTime = selectedTime.toLocaleTimeString([], {
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                                second: '2-digit'
-                                            });
-                                            setReserva({ ...reserva, duracion: formattedTime });
-                                        } else {
-                                            setReserva({ ...reserva, duracion: null });
-                                        }
-                                    }}
-                                    format="HH:mm:ss"
-                                />
-                            </DemoContainer>
-                        </LocalizationProvider>
+                        <Calendar id="fechaHasta" dateFormat='yy/mm/dd' value={reserva.fechaHasta} onChange={handleChangeFechaHasta} rows={3} cols={20} />
                     </div>
                     <div className="field">
-                        <label htmlFor="salon" className="font-bold">
+                        <label htmlFor="horaDevolucion" className="font-bold">
+                            Hora de devolució́n
+                        </label>
+                        <Dropdown
+                            id="horaDevolucion"
+                            value={reserva?.horaDevolucion}
+                            options={
+                                "08:00:00,09:00:00,10:00:00,11:00:00,12:00:00,13:00:00,14:00:00,15:00:00,16:00:00,17:00:00,18:00:00".split(",")
+                            }
+                            onChange={(e) => setReserva({ ...reserva, horaDevolucion: e.value })}
+                            placeholder="Seleccione la hora"
+                        />
+                    </div>
+                    <div className="field">
+                        <label htmlFor="salonID" className="font-bold">
                             Salón
                         </label>
-                        <InputText id="salon" value={reserva.salon} onChange={(e) => setReserva({ ...reserva, salon: e.target.value })} required autoFocus />
+                        <InputNumber id="salonID" value={reserva.salonID} onValueChange={(e) => setReserva({ ...reserva, salonID: e.target.value })} mode="decimal" showButtons min={1} max={6} />
                     </div>
                 </form>
             </Dialog>

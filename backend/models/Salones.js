@@ -1,5 +1,6 @@
 const { dbConnection } = require('../config/database');
 const { DataTypes } = require('sequelize');
+const  Reservas  = require('./Reservas'); 
 
 const Salones = dbConnection.define('Salones', {
     nombre: {
@@ -15,8 +16,17 @@ const Salones = dbConnection.define('Salones', {
     timestamps: false
 });
 
-Salones.sync({}).then(() => {
-    console.log("Tabla Salones sincronizada correctamente")
-}).catch(error => console.log(error))
+
+Salones.hasMany(Reservas, {
+    foreignKey: 'salonID',
+    as: 'Reservas'
+});  
+
+Salones.sync({ alter: true }).then(() => {
+    console.log("Tabla Salones sincronizada correctamente");
+}).catch((error) => {
+    console.log("hubo un error", error);
+})
 
 module.exports =  Salones;
+ 

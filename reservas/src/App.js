@@ -7,9 +7,9 @@ import Presentacion from './componentes/presentación';
 import LoginPage from './firebase/componenetes/login';
 import Salones from './componentes/Listadodesalones';
 import Reservas from './componentes/reservas';
-import Info from './componentes/info';
-import Salon from './componentes/salon';
 import DemoApp from './componentes/calendar';
+import Detalles from './componentes/detalleDeUsuario';
+import DetalleCliente from './componentes/detalle2';
 
 
 function App() {
@@ -18,8 +18,8 @@ function App() {
       <Router>
         <Navbar />
         <Routes>
-          <Route path='/' element={<><Presentacion /><Info /><Salon/></>}></Route>
-          <Route path='/firebase/componenetes/login' element={<LoginPage />}></Route>
+          <Route path='/' element={<LoginPage />}></Route>
+          <Route path='/presentación' element={<Presentacion />}></Route>
           <Route path='/salones' element={<ProtectedRoute>
             <Salones />
           </ProtectedRoute>}>
@@ -30,6 +30,14 @@ function App() {
           </Route>
           <Route path='/calendar' element={<ProtectedRoute>
             <DemoApp />
+          </ProtectedRoute>}>
+          </Route>
+          <Route path='/detalleDeUsuario' element={<ProtectedRoute>
+            <Detalles />
+          </ProtectedRoute>}>
+          </Route>
+          <Route path='/detalle2' element={<ProtectedRoute>
+            <DetalleCliente />
           </ProtectedRoute>}>
           </Route>
         </Routes>

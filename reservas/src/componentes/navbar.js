@@ -31,7 +31,7 @@ export default function Navbar() {
     {
       label: 'Inicio',
       icon: 'pi pi-fw pi-home',
-      url: '/'
+      url: '/presentación'
     },
     {
       label: 'Listado de Salones',
@@ -47,6 +47,11 @@ export default function Navbar() {
       label: 'Calendario',
       icon: 'pi pi-fw pi-calendar',
       url: '/calendar'
+    },
+    {
+      label: 'Detalles de Cliente',
+      icon: 'pi pi-fw pi-user',
+      url: '/detalle2'
     },
     isLoggedIn
       ? {

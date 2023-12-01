@@ -14,15 +14,15 @@ const getReserva = async (req, res = response) => {
 
 const nuevaReserva = async (req, res) => {
     try {
-        const { nombre, fecha, duracion, salon } = req.body;
-        const { path } = req.file;
+        const { nombre, fechaDesde, fechaHasta, horaDevolucion, salonID, file } = req.body;
 
         const nuevaReserva = new Reservas({
             nombre,
-            fecha,
-            duracion,
-            salon,
-            file: path
+            fechaDesde,
+            fechaHasta,
+            horaDevolucion,
+            salonID,
+            file
         });
 
         await nuevaReserva.save();
@@ -33,46 +33,59 @@ const nuevaReserva = async (req, res) => {
         res.status(500).json({ error: 'Hubo un error al crear la reserva' });
     }
 };
- /* Permite crear una nueva reserva */
+/* Permite crear una nueva reserva */
 
 
 const updateReserva = async (req, res = response) => {
-
-    const id = req.params.id
-    const { nombre, foto, fecha, duracion, salon } = req.body
+    const id = req.params.id;
+    const { nombre, fechaDesde, fechaHasta, horaDevolucion, salonID } = req.body;
 
     try {
-        const reserva = await Reservas.findByPk(id)
-        console.log(reserva)
+        let reserva = await Reservas.findByPk(id);
 
         if (!reserva) {
-            return res.status(201).json({
+            return res.status(404).json({
                 ok: false,
-                message: "reserva no encontrada"
-            })
+                message: "Reserva no encontrada"
+            });
         }
 
-        reserva.nombre = nombre
-        reserva.foto = foto
-        reserva.fecha = fecha
-        reserva.duracion = duracion
-        reserva.salon = salon
+        let file = reserva.file; // Conservar el archivo original si no se proporciona uno nuevo
+        if (req.file) {
+            file = req.file.filename; // Actualizar el nombre del archivo si se proporciona uno nuevo
+        }
 
+        const updatedReserva = await Reservas.update({
+            nombre,
+            fechaDesde,
+            fechaHasta,
+            horaDevolucion,
+            salonID,
+            file // Incluir el campo file en la actualización
+        }, {
+            where: { id: id }
+        });
 
-        await reserva.save()
-        res.json(reserva)
-
-        console.log(req.body)
-
+        if (updatedReserva[0] === 1) {
+            // Si la actualización fue exitosa, obtener la reserva actualizada
+            reserva = await Reservas.findByPk(id);
+            res.json(reserva);
+        } else {
+            res.status(500).json({
+                ok: false,
+                message: "No se pudo actualizar la reserva"
+            });
+        }
     } catch (error) {
-        console.log(error)
+        console.error(error);
         res.status(500).json({
             ok: false,
             message: "Error al actualizar la reserva"
-        })
+        });
     }
+};
 
-}; /* Encuentra la reserva por el id y luego permite actualizarla */
+/* Encuentra la reserva por el id y luego permite actualizarla */
 
 const deleteReserva = async (req, res = response) => {
 

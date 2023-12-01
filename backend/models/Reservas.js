@@ -6,18 +6,21 @@ const Reservas = dbConnection.define('Reservas', {
         type: DataTypes.STRING
     },
     file: {
-        type: DataTypes.BLOB
+        type: DataTypes.BLOB('long')
     },
-    fecha: {
+    fechaDesde: {
         type: DataTypes.DATE
     },
-    duracion: {
+    fechaHasta: {
+        type: DataTypes.DATE
+    },
+    horaDevolucion: {
         type: DataTypes.TIME
     },
-    salon: {
-        type: DataTypes.STRING
+    salonID: {
+        type: DataTypes.INTEGER
     }
-}, {
+}, { 
     timestamps: false
 });
 

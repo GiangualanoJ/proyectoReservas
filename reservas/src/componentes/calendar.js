@@ -1,102 +1,269 @@
-import React from 'react'
+import React, { useEffect, useState, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from "@fullcalendar/interaction"
-import { Dialog } from 'primereact/dialog';
 import { formatDate } from '@fullcalendar/core'
+import { Dialog } from 'primereact/dialog';
+import axios from 'axios';
+import { Button } from 'primereact/button';
+import { Toast } from 'primereact/toast';
+import { Calendar } from 'primereact/calendar';
+import { InputText } from 'primereact/inputtext';
+import { InputNumber } from 'primereact/inputnumber';
+import { FileUpload } from 'primereact/fileupload';
+import { Dropdown } from 'primereact/dropdown';
+import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 
-export default class DemoApp extends React.Component {
-  calendarRef = React.createRef()
 
-  componentDidMount() {
-    /* Realiza una solicitud a la API de reservas */
-    fetch('http://localhost:3001/reservas')
-      .then((response) => response.json())
-      .then((data) => {
-        /* Obtiene la instancia de FullCalendar */
-        const calendarApi = this.calendarRef.current.getApi();
-        /* Limpia el calendario antes de agregar nuevos eventos */
-        calendarApi.removeAllEvents();
-        /* Formatea los datos de la API y agrega los eventos */
-        data.forEach((reserva) => {
-          calendarApi.addEvent({
-            title: reserva.nombre,
-            start: reserva.fecha,
-            end: reserva.fecha,
-            salon: reserva.salon,
-          });
-        });
-      })
-      .catch((error) => {
-        console.error('Error al obtener datos de la API de reservas:', error);
+const DemoApp = () => {
+
+  const [reservas, setReservas] = useState([]);
+  const [reserva, setReserva] = useState({
+    id: null,
+    nombre: '',
+    file: null,
+    fechaDesde: new Date(),
+    fechaHasta: new Date(),
+    horaDevolucion: new Date().setHours(12, 0, 0),
+    salonID: '',
+  });
+  const calendarRef = useRef(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [displayBasic, setDisplayBasic] = useState(false);
+  const toast = useRef(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [file, setFile] = useState('')
+  const [selectedFile, setSelectedFile] = useState(null);
+  const argentinaTimeZone = 'America/Argentina/Buenos_Aires';
+
+
+  useEffect(() => {
+    getReserva();
+  }, []);
+
+  const getReserva = async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/reservas');
+      const data = response.data;
+
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.removeAllEvents();
+
+      data.forEach((reserva) => {
+        const event = {
+          id: reserva.id,
+          title: reserva.nombre,
+          nombre: reserva.nombre,
+          start: reserva.fechaDesde,
+          fechaDesde: reserva.fechaDesde,
+          fechaHasta: reserva.fechaHasta,
+          end: reserva.fechaHasta,
+          salonID: reserva.salonID,
+          horaDevolucion: reserva.horaDevolucion,
+        };
+
+        calendarApi.addEvent(event);
       });
+    } catch (error) {
+      console.log('Error cargando las reservas:', error);
+    }
   }
 
-  handleDateClick = (arg) => {
+
+  const handleDateClick = (arg) => {
     alert(arg.dateStr);
-  }
+  };
 
-  handleEventClick = (info) => {
-    info.el.style.borderColor = 'green';
+  const handleEventClick = (event) => {
+    const calendarApi = calendarRef.current.getApi();
+    const clickedEvent = calendarApi.getEventById(event.event.id);
 
+    if (clickedEvent) {
+      /* Extraer propiedades extendidas */
+      const extendedProps = clickedEvent.extendedProps || {};
+      const { id, nombre = '', salonID = '', horaDevolucion = '', fechaDesde, fechaHasta } = extendedProps;
+
+      /* Actualizar el estado con la información del evento seleccionado */
+      setReserva(prevReserva => ({
+        ...prevReserva,
+        id,
+        nombre,
+        salonID,
+        horaDevolucion,
+        fechaDesde: fechaDesde ? new Date(fechaDesde) : new Date(),
+        fechaHasta: fechaHasta ? new Date(fechaHasta) : new Date(),
+      }));
+
+      /* Mostrar el diálogo con los detalles de la reserva */
+      setDisplayBasic(true);
+    }
+  };
+
+
+  const onHide = () => {
+    setDisplayBasic(false);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      if (reserva.id) {
+        const response = await axios.put(`http://localhost:3001/reservas/${reserva.id}`, reserva);
+        const updatedReserva = response.data;
+        const updatedReservas = reservas.map((r) => (r.id === reserva.id ? updatedReserva : r));
+        setReservas(updatedReservas);
+        toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva editada', life: 3000 });
+      }
+      onHide();
+      getReserva();
+    } catch (error) {
+      console.error('Error al guardar los cambios:', error);
+    }
+    setDialogVisible(false);
+  };
+
+
+  /* const selectedHandler = (event) => {
+    const selectedFile = event.files[0];
+    setFile(selectedFile);
+  };
+
+  const handleFileUpload = (event) => {
+    setSelectedFile({ ...reserva, file: event.target.files[0] });
+  }; */
+
+  const handleChangeFechaDesde = (event) => {
+    const newFecha = new Date(event.value.getTime());
+    const formattedFechaDesde = new Intl.DateTimeFormat('es-AR').format(newFecha);
+    const fechaArgentina = zonedTimeToUtc(newFecha, argentinaTimeZone);
+    setReserva(prevPedido => ({
+      ...prevPedido,
+      fechaDesde: fechaArgentina,
+      fechaDesdeFormatted: formattedFechaDesde,
+    }));
+  };
+
+
+  const handleChangeFechaHasta = (event) => {
+    const newFecha = new Date(event.value.getTime());
+    const formattedFechaHasta = new Intl.DateTimeFormat('es-AR').format(newFecha);
+    const fechaArgentina = zonedTimeToUtc(newFecha, argentinaTimeZone);
+    setReserva(prevPedido => ({
+      ...prevPedido,
+      fechaHasta: fechaArgentina,
+      fechaHastaFormatted: formattedFechaHasta,
+    }));
+  };
+
+  function renderEventContent(eventInfo) {
     return (
-      <Dialog>
-
-      </Dialog>
+      <>
+        <b>{eventInfo.timeText}</b>
+        <i>{eventInfo.event.title}</i>
+        <i>{eventInfo.event.salonID}</i>
+      </>
     )
-
   }
 
-  render() {
-    return (
-      <div className='demo-app'>
-        {/* <div className='demo-app-sidebar'>
-          <div className='demo-app-sidebar-section'>
-            <h2>Reservas</h2>
-            <ul key={reserva.id}>
-              {reserva &&
-                reserva.map((reserva) => (
-                  <li key={reserva.id}>
-                    <b>{formatDate(reserva.start, { year: 'numeric', month: 'short', day: 'numeric' })}</b>
-                    <i>{reserva.title}</i>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        </div> */}
-        <div className='demo-app-main'>
-          <FullCalendar
-            ref={this.calendarRef}
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            editable={true}
-            selectable={true}
-            selectMirror={true}
-            dayMaxEvents={true}
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay'
-            }}
-            initialView="dayGridMonth"
-            weekends={false}
-            eventChange={true}
-            eventClick={this.handleEventClick}
-            dateClick={this.handleDateClick}
-            eventContent={renderEventContent}
-          />
-        </div>
+  const footerDialog = (
+    <React.Fragment>
+      <div className='grid justify-content-center align-items-center'>
+        <Button label="Save" icon="pi pi-check" type='submit' onClick={handleSave} rounded />
+        <Button label="Cancel" icon="pi pi-times" outlined rounded onClick={onHide} className='mt-2' />
       </div>
-    )
-  }
-}
-
-function renderEventContent(eventInfo) {
-  return (
-    <>
-      <b>{eventInfo.timeText}</b>
-      <i>{eventInfo.event.title}</i>
-      <i>{eventInfo.event.salon}</i>
-    </>
+    </React.Fragment>
   )
-}
+
+  return (
+    <div className='demo-app'>
+      <Toast ref={toast} />
+      {/* <div className='demo-app-sidebar'>
+        <div className='demo-app-sidebar-section'>
+          <h2>Reservas</h2>
+          <ul>
+            {reservas.map((reserva, index) => (
+              <li key={index}>
+                <b>{formatDate(reserva.fechaDesde, { year: 'numeric', month: 'short', day: 'numeric' })}</b>
+                <i>{reserva.nombre}</i>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div> */}
+      <div className='demo-app-main'>
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          editable={true}
+          selectable={true}
+          selectMirror={true}
+          dayMaxEvents={true}
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+          }}
+          initialView="dayGridMonth"
+          weekends={true}
+          eventChange={true}
+          eventClick={handleEventClick}
+          dateClick={handleDateClick}
+          eventContent={renderEventContent}
+        />
+      </div>
+
+      <Dialog visible={displayBasic} onHide={onHide} footer={footerDialog} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Detalles de reserva" modal className="p-fluid">
+        <form onSubmit={handleSave} id='nuevaReserva'>
+          <div className="field">
+            <label htmlFor="nombre" className="font-bold">
+              Nombre
+            </label>
+            <InputText id="nombre" value={reserva.nombre} onChange={(e) => setReserva({ ...reserva, nombre: e.target.value })} />
+          </div>
+          {/* <div className="field">
+            <label htmlFor="file" className="font-bold">
+              Imagen
+            </label>
+            <FileUpload id="file" mode="basic" onChange={handleFileUpload} onSelect={selectedHandler} name="file" url="http://localhost:3001/reservas/imagen" accept="image/*" maxFileSize={1000000} />
+          </div> */}
+          <div className="field">
+            <label htmlFor="fechaDesde" className="font-bold">
+              Fecha de inicio
+            </label>
+            <Calendar id="fechaDesde" dateFormat='yy/mm/dd' value={reserva.fechaDesde} onChange={handleChangeFechaDesde} rows={3} cols={20} />
+          </div>
+          <div className="field">
+            <label htmlFor="fechaHasta" className="font-bold">
+              Fecha de final
+            </label>
+            <Calendar id="fechaHasta" dateFormat='yy/mm/dd' value={reserva.fechaHasta} onChange={handleChangeFechaHasta} rows={3} cols={20} />
+          </div>
+          <div className="field">
+            <label htmlFor="horaDevolucion" className="font-bold">
+              Hora de devolució́n
+            </label>
+            <Dropdown
+              id="horaDevolucion"
+              value={reserva?.horaDevolucion}
+              options={
+                "08:00:00,09:00:00,10:00:00,11:00:00,12:00:00,13:00:00,14:00:00,15:00:00,16:00:00,17:00:00,18:00:00".split(",")
+              }
+              onChange={(e) => setReserva({ ...reserva, horaDevolucion: e.value })}
+              placeholder="Seleccione la hora"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="salonID" className="font-bold">
+              Salón
+            </label>
+            <InputNumber id="salonID" value={reserva.salonID} onValueChange={(e) => setReserva({ ...reserva, salonID: e.target.value })} mode="decimal" showButtons min={1} max={6} />
+          </div>
+        </form>
+      </Dialog>
+    </div>
+  );
+};
+
+export default DemoApp;
+
