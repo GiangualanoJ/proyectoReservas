@@ -61,20 +61,8 @@ export default function Reserva() {
         e.preventDefault();
         try {
 
-            const formData = new FormData();
-            formData.append("nombre", reserva.nombre);
-            formData.append("file", reserva.file);
-            formData.append("fechaDesde", reserva.fechaDesde);
-            formData.append("fechaHasta", reserva.fechaHasta);
-            formData.append("horaDevolucion", reserva.horaDevolucion);
-            formData.append("salonID", reserva.salonID);
-
             if (reserva.id) {
-                await axios.put(`http://localhost:3001/reservas/${reserva.id}`, formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
-                });
+                await axios.put(`http://localhost:3001/reservas/${reserva.id}`, reserva);
                 const updatedReserva = [...reservas];
                 const reservaIndex = updatedReserva.findIndex((r) => r.id === reserva.id);
                 updatedReserva[reservaIndex] = { ...reserva };
@@ -82,6 +70,12 @@ export default function Reserva() {
                 toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva editada', life: 3000 });
             } else {
                 const response = await axios.post('http://localhost:3001/reservas/nuevaReserva', reserva);
+                await axios.post('http://localhost:3001/reservas/uploadImagen', imagen, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+                console.log('Imagen enviada correctamente');
                 const newReserva = response.data;
                 setReservas([...reservas, newReserva]);
                 toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva creada', life: 3000 });
@@ -188,19 +182,13 @@ export default function Reserva() {
     };
 
     const customBase64Uploader = async (event) => {
+        
         const file = event.files[0];
-        const reader = new FileReader();
+        const formData = new FormData();
+        formData.append('imagen', file)
+        setImagen(formData);
 
-        reader.onloadend = function () {
-            const base64data = reader.result;
-            console.log('Base64 data:', base64data);
-            setReserva(prevReserva => ({
-                ...prevReserva,
-                file: base64data,
-            }));
-        };
-
-        reader.readAsDataURL(file);
+        setProduct({ ...product, imagen: file.name });
     };
 
     const clearFilter = () => {
@@ -327,7 +315,7 @@ export default function Reserva() {
                         <label htmlFor="file" className="font-bold">
                             Imagen
                         </label>
-                        <FileUpload id="file" mode="basic" uploadHandler={customBase64Uploader} name="file" accept="image/*" customUpload maxFileSize={1000000} />
+                        <FileUpload id="file" mode="basic" name="file" onSelect={customBase64Uploader} chooseLabel='Elegir' uploadLabel='Subir' cancelLabel='Cancelar' customUpload />
                     </div>
                     <div className="field">
                         <label htmlFor="fechaDesde" className="font-bold">

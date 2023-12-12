@@ -6,7 +6,7 @@ const Reservas = dbConnection.define('Reservas', {
         type: DataTypes.STRING
     },
     file: {
-        type: DataTypes.BLOB('long')
+        type: DataTypes.STRING
     },
     fechaDesde: {
         type: DataTypes.DATE

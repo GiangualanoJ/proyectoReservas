@@ -101,11 +101,43 @@ const deleteReserva = async (req, res = response) => {
 } /* Encuentra la reserva por el id y luego la elimina */
 
 
+const fs = require('fs');
+const path = require('path');
+
+const returnImagen = async (req, res = response) => {
+    const uploadFolder = path.join(__dirname, '../uploads');
+
+    try {
+
+        // Lee el contenido de la carpeta de uploads
+        fs.readdir(uploadFolder, (err, files) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: 'Error al leer la carpeta de uploads' });
+            }
+            
+            // Filtra solo los archivos de imagen
+            const imageFiles = files.filter(file => {
+                const fileExtension = path.extname(file).toLowerCase();
+                return ['.jpg', '.jpeg', '.png', '.gif'].includes(fileExtension);
+            });
+            
+            // Envía la lista de nombres de archivo al front-end
+            res.json({ images: imageFiles });
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al leer la carpeta de uploads' });
+    }
+}
+
+
 
 
 module.exports = {
     getReserva,
     nuevaReserva,
     updateReserva,
-    deleteReserva
+    deleteReserva,
+    returnImagen
 }

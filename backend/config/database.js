@@ -1,3 +1,5 @@
+'use strict';  
+
 const { Sequelize } = require('sequelize');
 
 const dbConnection = new Sequelize('eventos', 'root', 'JoseRena1244',
