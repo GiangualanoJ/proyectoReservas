@@ -47,7 +47,7 @@ function App() {
 }
 
 
-const ProtectedRoute = ({ redirectPath = "/", children }) => {
+const ProtectedRoute = ({ redirectPath = "/presentación", children }) => {
 
   const navigate = useNavigate()
 

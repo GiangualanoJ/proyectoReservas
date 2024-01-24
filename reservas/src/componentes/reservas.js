@@ -12,13 +12,13 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dialog } from 'primereact/dialog';
 import { FileUpload } from 'primereact/fileupload';
 import { FilterMatchMode, FilterOperator } from 'primereact/api';
-import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+import { zonedTimeToUtc } from 'date-fns-tz';
 
 export default function Reserva() {
     let emptyReserva = {
         id: null,
         nombre: '',
-        file: '',
+        imagen: '',
         fechaDesde: new Date(),
         fechaHasta: new Date(),
         horaDevolucion: new Date().setHours(12, 0, 0),
@@ -29,6 +29,8 @@ export default function Reserva() {
     const [reservas, setReservas] = useState([]);
     const [reservaId, setReservaId] = useState(null)
     const [reserva, setReserva] = useState(emptyReserva);
+    const [imagen, setImagen] = useState(null);
+    const [imagenUpdate, setImagenUpdate] = useState(null);
     const [DialogRE, setDialogRE] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -58,15 +60,23 @@ export default function Reserva() {
     }
 
     const createReserva = async (e) => {
+
         e.preventDefault();
+
         try {
 
             if (reserva.id) {
                 await axios.put(`http://localhost:3001/reservas/${reserva.id}`, reserva);
+                await axios.post('http://localhost:3001/reservas/uploadImagen', imagen, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
                 const updatedReserva = [...reservas];
                 const reservaIndex = updatedReserva.findIndex((r) => r.id === reserva.id);
                 updatedReserva[reservaIndex] = { ...reserva };
                 setReservas(updatedReserva);
+                setImagen(null);
                 toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva editada', life: 3000 });
             } else {
                 const response = await axios.post('http://localhost:3001/reservas/nuevaReserva', reserva);
@@ -76,13 +86,14 @@ export default function Reserva() {
                     }
                 });
                 console.log('Imagen enviada correctamente');
+
                 const newReserva = response.data;
+                setImagen(null);
                 setReservas([...reservas, newReserva]);
                 toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva creada', life: 3000 });
             }
             hideDialog();
             getReserva();
-
         } catch (error) {
             console.error(error);
         }
@@ -106,11 +117,15 @@ export default function Reserva() {
     const openNew = () => {
         setReserva(emptyReserva);
         setSubmitted(false);
+        setImagen(null);
         setDialogRE(true);
     };
 
     const hideDialog = () => {
         setDialogRE(false);
+        setImagenUpdate(null);
+        setImagen(null);
+        setSubmitted(false);
         setReserva(emptyReserva);
     };
 
@@ -121,6 +136,9 @@ export default function Reserva() {
     const editReserva = (reserva) => {
         const fechaD = reserva.fechaDesde instanceof Date ? reserva.fechaDesde.toISOString().split('T')[0] : reserva.fechaDesde;
         const fechaH = reserva.fechaHasta instanceof Date ? reserva.fechaHasta.toISOString().split('T')[0] : reserva.fechaHasta;
+        imageUniqued(reserva.imagen).then((url) => {
+            setImagenUpdate(url);
+        });
 
         setReserva({
             ...reserva,
@@ -128,6 +146,32 @@ export default function Reserva() {
             fechaHasta: new Date(fechaH),
         });
         setDialogRE(true);
+    };
+
+    const imageBodyTemplate = (rowData) => {
+        const urlImagen = rowData.imagen;
+
+        const imageUrl = `http://localhost:3001/uploads/${urlImagen}`;
+
+        return <img src={imageUrl} alt={rowData.nombre} className="shadow-2 border-round mt-5" style={{ width: '150px', height: "150px", }} />;
+    };
+
+
+    const imageUniqued = async (imagen) => {
+        const rutaImagen = `https://deploy-webreservas-0e9b96bf9ba7.herokuapp.com/uploads/${imagen}`;
+        setImagenUpdate(rutaImagen);
+        return rutaImagen;
+
+    }
+
+    const handleSelect = async (event) => {
+
+        const file = event.files[0];
+        const formData = new FormData();
+        formData.append('imagen', file)
+        setImagen(formData);
+
+        setReserva({ ...reserva, imagen: file.name });
 
     };
 
@@ -179,16 +223,6 @@ export default function Reserva() {
                 {fechaFormateada}
             </span>
         );
-    };
-
-    const customBase64Uploader = async (event) => {
-        
-        const file = event.files[0];
-        const formData = new FormData();
-        formData.append('imagen', file)
-        setImagen(formData);
-
-        setProduct({ ...product, imagen: file.name });
     };
 
     const clearFilter = () => {
@@ -274,7 +308,7 @@ export default function Reserva() {
                         <Card filters={filters} globalFilterFields={['nombre', 'salonID', 'fecha']} emptyMessage="No se encontraron resultados.">
                             <div className='grid m-0'>
                                 <div className='align-items-center'>
-                                    <img src={`http://localhost:3001/reservas/imagen/${reserva.file}`} alt={reserva.nombre} className='fotos'></img>
+                                    {imageBodyTemplate(reserva)}
                                 </div>
                                 <div className='p-grid m-5 justify-content-center'>
                                     <div className='mb-2'>
@@ -304,6 +338,12 @@ export default function Reserva() {
 
 
             <Dialog visible={DialogRE} style={{ width: '32rem' }} breakpoints={{ '960px': '75vw', '641px': '90vw' }} header="Reserva" modal className="p-fluid" footer={footerDialog} onHide={hideDialog}>
+                {imagen && (
+                    <img src={URL.createObjectURL(imagen.get('imagen'))} alt={reserva.nombre} width={200} className="product-image block m-auto pb-3" />
+                )}
+                {imagen === null && imagenUpdate && (
+                    <img src={imagenUpdate} alt="cargar imagen" width={200} className="product-image block m-auto pb-3" />
+                )}
                 <form onSubmit={createReserva} id='nuevaReserva'>
                     <div className="field">
                         <label htmlFor="nombre" className="font-bold">
@@ -312,10 +352,10 @@ export default function Reserva() {
                         <InputText id="nombre" value={reserva?.nombre} onChange={(e) => setReserva({ ...reserva, nombre: e.target.value })} autoFocus />
                     </div>
                     <div className="field">
-                        <label htmlFor="file" className="font-bold">
+                        <label htmlFor="imagen" className="font-bold">
                             Imagen
                         </label>
-                        <FileUpload id="file" mode="basic" name="file" onSelect={customBase64Uploader} chooseLabel='Elegir' uploadLabel='Subir' cancelLabel='Cancelar' customUpload />
+                        <FileUpload id="imagen" name="imagen" url={''} onSelect={handleSelect} cancelLabel='Cancelar' chooseLabel='Elegir' auto={true} />
                     </div>
                     <div className="field">
                         <label htmlFor="fechaDesde" className="font-bold">

@@ -63,7 +63,7 @@ export default function Navbar() {
       : {
           label: 'Log in',
           icon: 'pi pi-fw pi-user-plus',
-          url: '#login',
+          url: '/',
           className: 'p-menuitem-end', 
           styleClass: 'custom-menu-item',
           style: { marginLeft: 'auto', }

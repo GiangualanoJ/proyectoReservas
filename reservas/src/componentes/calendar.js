@@ -65,6 +65,8 @@ const DemoApp = () => {
 
         calendarApi.addEvent(event);
       });
+      setReservas(data);
+      setDialogVisible(false);
     } catch (error) {
       console.log('Error cargando las reservas:', error);
     }
@@ -105,24 +107,40 @@ const DemoApp = () => {
     setDisplayBasic(false);
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    try {
-      if (reserva.id) {
-        const response = await axios.put(`http://localhost:3001/reservas/${reserva.id}`, reserva);
-        const updatedReserva = response.data;
-        const updatedReservas = reservas.map((r) => (r.id === reserva.id ? updatedReserva : r));
-        setReservas(updatedReservas);
-        toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva editada', life: 3000 });
-      }
-      onHide();
-      getReserva();
-    } catch (error) {
-      console.error('Error al guardar los cambios:', error);
-    }
-    setDialogVisible(false);
-  };
+  /* ... */
+const handleSave = async (e) => {
+  e.preventDefault();
+  try {
+    if (reserva.id) {
+      const formData = new FormData();
+      formData.append('file', reserva.file);
 
+      Object.entries(reserva).forEach(([key, value]) => {
+        if (key !== 'file') {
+          formData.append(key, value);
+        }
+      });
+
+      const response = await axios.put(`http://localhost:3001/reservas/${reserva.id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const updatedReserva = response.data;
+      const updatedReservas = reservas.map((r) => (r.id === reserva.id ? updatedReserva : r));
+      setReservas(updatedReservas);
+      toast.current.show({ severity: 'success', summary: 'Exitoso', detail: 'Reserva editada', life: 3000 });
+
+      
+      await getReserva();
+    }
+    onHide();
+  } catch (error) {
+    console.error('Error al guardar los cambios:', error);
+  }
+  setDialogVisible(false);
+};
 
   /* const selectedHandler = (event) => {
     const selectedFile = event.files[0];
@@ -219,7 +237,7 @@ const DemoApp = () => {
             <label htmlFor="nombre" className="font-bold">
               Nombre
             </label>
-            <InputText id="nombre" value={reserva.nombre} onChange={(e) => setReserva({ ...reserva, nombre: e.target.value })} />
+            <InputText id="nombre" value={reserva.nombre} onChange={(e) => setReserva((prevReserva) => ({ ...prevReserva, nombre: e.target.value }))} />
           </div>
           {/* <div className="field">
             <label htmlFor="file" className="font-bold">
@@ -231,7 +249,7 @@ const DemoApp = () => {
             <label htmlFor="fechaDesde" className="font-bold">
               Fecha de inicio
             </label>
-            <Calendar id="fechaDesde" dateFormat='yy/mm/dd' value={reserva.fechaDesde} onChange={handleChangeFechaDesde} rows={3} cols={20} />
+            <Calendar id="fechaDesde" dateFormat="yy/mm/dd" value={reserva.fechaDesde} onChange={handleChangeFechaDesde} rows={3} cols={20} />
           </div>
           <div className="field">
             <label htmlFor="fechaHasta" className="font-bold">
@@ -249,7 +267,7 @@ const DemoApp = () => {
               options={
                 "08:00:00,09:00:00,10:00:00,11:00:00,12:00:00,13:00:00,14:00:00,15:00:00,16:00:00,17:00:00,18:00:00".split(",")
               }
-              onChange={(e) => setReserva({ ...reserva, horaDevolucion: e.value })}
+              onChange={(e) => setReserva((prevReserva) => ({ ...prevReserva, horaDevolucion: e.value }))}
               placeholder="Seleccione la hora"
             />
           </div>
@@ -257,7 +275,7 @@ const DemoApp = () => {
             <label htmlFor="salonID" className="font-bold">
               Salón
             </label>
-            <InputNumber id="salonID" value={reserva.salonID} onValueChange={(e) => setReserva({ ...reserva, salonID: e.target.value })} mode="decimal" showButtons min={1} max={6} />
+            <InputNumber id="salonID" value={reserva.salonID} onValueChange={(e) => setReserva((prevReserva) => ({ ...prevReserva, salonID: e.value }))} mode="decimal" showButtons min={1} max={6} />
           </div>
         </form>
       </Dialog>

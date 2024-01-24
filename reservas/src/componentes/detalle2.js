@@ -38,14 +38,11 @@ export default function DetalleCliente() {
 
     return (
         <div>
-            {/* <div className='col-12 p-0 m-0'>
-                <Toolbar start={startContent} />
-            </div> */}
             <div className="card">
                 <DataTable value={products} tableStyle={{ minWidth: '50rem' }} header="Detalle de Cliente">
                     <Column field="id" header="ID"></Column>
                     <Column field="nombre" header="Cliente"></Column>
-                    <Column field="salon" header="reserva"></Column>
+                    <Column field="salonID" header="reserva"></Column>
                     <Column field="fechaDesde" header="Fecha de inicio" sortable></Column>
                     <Column field="fechaHasta" header="Fecha de fin"></Column>
                 </DataTable>

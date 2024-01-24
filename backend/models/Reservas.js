@@ -5,7 +5,7 @@ const Reservas = dbConnection.define('Reservas', {
     nombre: {
         type: DataTypes.STRING
     },
-    file: {
+    imagen: {
         type: DataTypes.STRING
     },
     fechaDesde: {

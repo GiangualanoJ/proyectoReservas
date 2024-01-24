@@ -10,7 +10,7 @@ const LoginPage = () => {
 
     useEffect(() => {
         if (localStorage.getItem("firebaseToken")) {
-            navigate("/");
+            navigate("/presentación");
         }
     }, []);
 
@@ -30,7 +30,7 @@ const LoginPage = () => {
 
             window.dispatchEvent(new Event("login"));
 
-            navigate("/");
+            navigate("/presentación");
         } catch (error) {
             console.error('Error en el inicio de sesión con Google: ', error);
         }
