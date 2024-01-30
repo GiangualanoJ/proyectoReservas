@@ -158,7 +158,7 @@ export default function Reserva() {
 
 
     const imageUniqued = async (imagen) => {
-        const rutaImagen = `https://deploy-webreservas-0e9b96bf9ba7.herokuapp.com/uploads/${imagen}`;
+        const rutaImagen = ` https://deploy-webreservas-0e9b96bf9ba7.herokuapp.com/uploads/${imagen}`;
         setImagenUpdate(rutaImagen);
         return rutaImagen;
 
